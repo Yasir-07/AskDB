@@ -23,7 +23,7 @@ again.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env        # paste your AI key + your provider's current model
+
 
 # try it by hand
 uvicorn app.main:app --reload
