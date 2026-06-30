@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AskDB</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; max-width: 760px;
+           margin: 40px auto; padding: 0 16px; line-height: 1.5; color: #1a1a1a; }
+    h1 { font-size: 1.4rem; letter-spacing: -0.02em; }
+    .sub { color: #777; margin-top: -8px; font-size: .9rem; }
+    input { width: 100%; padding: 12px; font: inherit; border: 1px solid #ccc;
+            border-radius: 10px; box-sizing: border-box; }
+    button { margin-top: 10px; padding: 10px 18px; font: inherit; border: 0;
+             border-radius: 10px; background: #1f3864; color: #fff; cursor: pointer; }
+    pre { background: #f5f5f7; padding: 12px; border-radius: 10px; overflow-x: auto;
+          margin: 6px 0; font-size: .85rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #e3e3e3; padding: 6px 10px; text-align: left; font-size: .9rem; }
+    .note { color: #777; font-size: .85rem; margin-top: 10px; }
+    .trail { margin-top: 16px; border-left: 3px solid #e0a800; padding-left: 14px; }
+    .trail h3 { font-size: .95rem; margin: 0 0 6px; }
+    .step { margin-bottom: 10px; }
+    .step .label { font-size: .8rem; font-weight: 600; }
+    .step.bad .label { color: #c0392b; }
+    .step.ok .label { color: #1e7e34; }
+    .err { color: #c0392b; font-size: .82rem; display: block; margin-top: 2px; }
+    h2.ans { font-size: 1rem; margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <h1>AskDB</h1>
+  <p class="sub">Ask the database a question in plain English. When the AI's first query fails, watch it fix itself.</p>
+  <input id="q" placeholder="e.g. How many titles feature Tom Hanks?" />
+  <br /><button onclick="ask()">Ask</button>
+  <div id="out"></div>
+
+  <script>
+    function esc(s) {
+      return (s == null ? '' : String(s))
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    async function ask() {
+      const q = document.getElementById('q').value.trim();
+      const out = document.getElementById('out');
+      if (!q) return;
+      out.innerHTML = 'Thinking…';
+
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q }),
+      });
+      const d = await res.json();
+
+      if (!d.success) {
+        out.innerHTML = '<p>Could not answer after ' + d.attempts
+          + ' attempt(s). Last error:</p><pre>' + esc(d.error) + '</pre>';
+        return;
+      }
+
+      let html = '';
+
+      // Show the self-correction trail when a fix happened
+      if (d.self_corrected && d.attempts_log && d.attempts_log.length > 1) {
+        html += '<div class="trail"><h3>🔧 Self-correction happened</h3>';
+        d.attempts_log.forEach((a, i) => {
+          if (a.ok) {
+            html += '<div class="step ok"><span class="label">✓ Attempt ' + (i + 1)
+              + ' — worked</span><pre>' + esc(a.sql) + '</pre></div>';
+          } else {
+            html += '<div class="step bad"><span class="label">✗ Attempt ' + (i + 1)
+              + ' — failed</span><pre>' + esc(a.sql) + '</pre>'
+              + '<span class="err">' + esc(a.error) + '</span></div>';
+          }
+        });
+        html += '</div>';
+      }
+
+      // The final answer
+      html += '<h2 class="ans">Answer</h2>';
+      html += '<pre>' + esc(d.sql) + '</pre>';
+      html += '<table><tr>' + d.columns.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr>';
+      html += d.rows.map(r => '<tr>' + r.map(c => '<td>' + esc(c) + '</td>').join('') + '</tr>').join('');
+      html += '</table>';
+      html += '<p class="note">Took ' + d.attempts + ' attempt(s)'
+            + (d.self_corrected ? ' — the AI fixed its own query (see above).' : '.') + '</p>';
+
+      out.innerHTML = html;
+    }
+  </script>
+</body>
+</html>

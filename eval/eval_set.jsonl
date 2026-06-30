@@ -1,0 +1,4 @@
+{"question": "How many titles feature Shah Rukh Khan in the cast?", "expected_contains": "35"}
+{"question": "How many titles feature Adam Sandler in the cast?", "expected_contains": "20"}
+{"question": "How many titles have Tom Hanks in the cast?", "expected_contains": "8"}
+{"question": "How many Movies have a TV-MA rating?", "expected_contains": "2062"}
